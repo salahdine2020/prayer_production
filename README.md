@@ -4,7 +4,9 @@ Android and IOS version of Prayer Production APP
 
 ## App Feautres:
 
-  - 1/ Onboarding Screens
+  - 1/ Onboarding Screens :
+    - 1.1/ page view syste to see app detail in resume
+    - 1.2/ allow you to keep watch the screens or skip them into Register Screen  
   - 2/ inscription part
     - 2.1/ form to valid insiption
     - 2.2/ Post Informaion of user into server side
