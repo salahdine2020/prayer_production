@@ -5,12 +5,12 @@ import 'package:line_awesome_flutter/line_awesome_flutter.dart';
 import 'package:prayer_production/controller/api_provider.dart';
 import 'package:prayer_production/models/download_user_inf.dart';
 import 'package:prayer_production/utils/constants.dart';
+import 'package:prayer_production/views/signup.dart';
+import 'package:prayer_production/widgets/bottom_scheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../widgets/profile_list_item.dart';
 
 class ProfileScreen extends StatelessWidget {
-
   Future<String> getSaveID() async {
     SharedPreferences sharedPreferences = await SharedPreferences.getInstance();
     var ID = sharedPreferences.getString('id');
@@ -33,6 +33,7 @@ class ProfileScreen extends StatelessWidget {
               children: <Widget>[
                 CircleAvatar(
                   radius: kSpacingUnit.w * 5,
+
                   /// men by default and change with sex after download User Information
                   backgroundImage: AssetImage('assets/images/men_avatar.png'),
                 ),
@@ -68,10 +69,14 @@ class ProfileScreen extends StatelessWidget {
                 return Text('Something went wrong ${snapshot.error}-------');
               }
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return Center(child: CircularProgressIndicator(),);
+                return Center(
+                  child: CircularProgressIndicator(),
+                );
               }
               return Text(
-                snapshot.data.nom.toString() + ' ' + snapshot.data.prenom.toString(), //'Nicolas Adams',
+                snapshot.data.nom.toString() +
+                    ' ' +
+                    snapshot.data.prenom.toString(), //'Nicolas Adams',
                 style: kTitleTextStyle,
               );
             },
@@ -86,20 +91,20 @@ class ProfileScreen extends StatelessWidget {
 //            style: kCaptionTextStyle,
 //          ),
           SizedBox(height: kSpacingUnit.w * 2),
-          Container(
-            height: kSpacingUnit.w * 4,
-            width: kSpacingUnit.w * 20,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(kSpacingUnit.w * 3),
-              color: Theme.of(context).accentColor,
-            ),
-            child: Center(
-              child: Text(
-                'Update',
-                style: kButtonTextStyle,
-              ),
-            ),
-          ),
+//          Container(
+//            height: kSpacingUnit.w * 4,
+//            width: kSpacingUnit.w * 20,
+//            decoration: BoxDecoration(
+//              borderRadius: BorderRadius.circular(kSpacingUnit.w * 3),
+//              color: Theme.of(context).accentColor,
+//            ),
+//            child: Center(
+//              child: Text(
+//                'Update',
+//                style: kButtonTextStyle,
+//              ),
+//            ),
+//          ),
         ],
       ),
     );
@@ -166,33 +171,65 @@ class ProfileScreen extends StatelessWidget {
                     children: <Widget>[
                       FutureBuilder<DownloadUsermModel>(
                         /// GET WHEN USER ADD FROM SHARED
-                        future: PrayerProvider().PostToDownloadUser(),//id: getSaveID ?? '72'
+                        future: PrayerProvider()
+                            .PostToDownloadUser(), //id: getSaveID ?? '72'
                         builder: (context, snapshot) {
+                          if (!snapshot.hasData) {
+                            return Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
                           if (snapshot.hasError) {
                             return Text('Something went wrong');
                           }
-                          if (snapshot.connectionState == ConnectionState.waiting) {
-                            return Center(child: CircularProgressIndicator(),);
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return Center(
+                              child: CircularProgressIndicator(),
+                            );
                           }
-                          return Column(
-                            children: [
-                              ProfileListItem(
-                                icon: LineAwesomeIcons.codepen,
-                                text: 'Postal : ${snapshot.data.codePostal}',
-                              ),
-                              ProfileListItem(
-                                icon: LineAwesomeIcons.phone,
-                                text: 'Telephone : ${snapshot.data.numTelephone}',
-                              ),
-                              ProfileListItem(
-                                icon: LineAwesomeIcons.question_circle,
-                                text: 'Help & Support',
-                              ),
-                              ProfileListItem(
-                                icon: LineAwesomeIcons.venus_mars,
-                                text: 'About US',
-                              ),
-                            ],
+                          return Padding(
+                            padding: const EdgeInsets.all(12),
+                            child: Column(
+                              children: [
+//                              ProfileListItem(
+//                                icon: LineAwesomeIcons.codepen,
+//                                text: 'Postal : ${snapshot.data.codePostal}',
+//                              ),
+//                              ProfileListItem(
+//                                icon: LineAwesomeIcons.phone,
+//                                text: 'Telephone : ${snapshot.data.numTelephone}',
+//                              ),
+                                ProfileListItem(
+                                  icon: LineAwesomeIcons.info,
+                                  text: 'About Us',
+                                ),
+                                ProfileListItem(
+                                  icon: LineAwesomeIcons.question_circle,
+                                  text: 'Help & Support',
+                                ),
+                                ProfileListItem(
+                                  icon: LineAwesomeIcons.qrcode,
+                                  text: 'QR Code',
+                                ),
+                                DialogExample(
+                                  nom: snapshot.data.nom.toString(),
+                                  prenom: snapshot.data.prenom.toString(),
+                                  code_postal: snapshot.data.codePostal.toString(),
+                                  num_telephone: snapshot.data.numTelephone.toString(),
+                                  id: snapshot.data.id,
+                                  status_widget: 'update',
+                                ),
+//                                    await PrayerProvider().PostToUpdateUser(
+//                                      nom: 'KHALED 1',//snapshot.data.nom,
+//                                      prenom: snapshot.data.prenom,
+//                                      code_postal: snapshot.data.codePostal,
+//                                      flag_sexe: snapshot.data.sexe,
+//                                      num_telephone: snapshot.data.numTelephone,
+//                                      id: snapshot.data.id,
+//                                    );
+                              ],
+                            ),
                           );
                         },
                       ),

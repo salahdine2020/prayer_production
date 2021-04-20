@@ -1,5 +1,6 @@
 import 'package:animated_theme_switcher/animated_theme_switcher.dart';
 import 'package:flutter/material.dart';
+import 'package:prayer_production/repository/shared_base.dart';
 import 'package:prayer_production/utils/constants.dart';
 import 'package:prayer_production/views/accueil.dart';
 import 'package:prayer_production/views/signup.dart';
@@ -12,9 +13,18 @@ void main() {
   runApp(MyApp());
 }
 
+
 class MyApp extends StatelessWidget {
+
+  Future<bool> showSeen() async{
+    var result = await RepositeryShared().getSeenScreen();
+    print('----- Seen result $result --------');
+    return result;
+  }
+
   @override
   Widget build(BuildContext context) {
+    //print('----- Seen result of methode ${showSeen()} --------');
     return ThemeProvider(
       initTheme: kDarkTheme,
       child: Builder(
@@ -23,7 +33,19 @@ class MyApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           title: 'Prayer_App',
           theme: ThemeProvider.of(context),
-          home: MyHomePage(title: 'Flutter Demo Home Page'),
+          home: FutureBuilder<bool>(
+            future: showSeen(),
+            builder: (context, snapshot){
+              if (snapshot.hasError) {
+                return Text('Something went wrong');
+              }
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Center(child: CircularProgressIndicator(),);
+              }
+              return (snapshot.data == false || snapshot.data == null) ? MyHomePage(title: 'Flutter Demo Home Page') :  HomeMainBottomBar();
+            },
+          ),
+          ///showSeen() ? HomeMainBottomBar() : MyHomePage(title: 'Flutter Demo Home Page'),
         );
       }),
     );
@@ -43,10 +65,12 @@ class _MyHomePageState extends State<MyHomePage> {
     return SplashScreen(
       seconds: 6,
       navigateAfterSeconds: OnBoardingPage(),
-      ///HomeMainBottomBar(),
-      ///AppBarSearchExample(),
+      /// HomeMainBottomBar(),
+      /// AppBarSearchExample(),
       /// SignupPage(),
-      /// AppBarSearchExample(),//AccueilPage(),//OnBoardingPage(),
+      /// AppBarSearchExample(),
+      /// AccueilPage(),
+      /// OnBoardingPage(),
       photoSize: 180,
       image: Image.asset('assets/images/prayer_mosque_logo.png'),
       backgroundColor: Colors.white,

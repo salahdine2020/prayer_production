@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:prayer_production/views/accueil.dart';
+import 'package:prayer_production/views/favorite_mosques.dart';
 import 'package:prayer_production/views/profile.dart';
 import 'package:prayer_production/views/profile_inf.dart';
 import 'package:prayer_production/widgets/search_mosque.dart';
@@ -27,11 +28,7 @@ class _HomeMainBottomBarState extends State<HomeMainBottomBar> {
       AppBarSearchExample(),
     );
     _children.add(
-      Center(
-        child: Container(
-          child: Text('favorite'),
-        ),
-      ),
+        FavoriteItemPage(),
     );
     _children.add(
         ProfileScreen(),

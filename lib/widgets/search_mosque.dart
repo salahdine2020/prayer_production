@@ -3,12 +3,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/material.dart';
 import 'package:english_words/english_words.dart' as english_words;
 import 'package:prayer_production/controller/api_provider.dart';
+import 'package:prayer_production/repository/shared_base.dart';
+import 'package:prayer_production/views/accueil.dart';
 import 'package:prayer_production/views/mosques_list.dart';
+import 'package:prayer_production/views/resarvation_prayer.dart';
 
 // Adapted from search demo in offical flutter gallery:
 // https://github.com/flutter/flutter/blob/master/examples/flutter_gallery/lib/demo/material/search_demo.dart
 class AppBarSearchExample extends StatefulWidget {
-  const AppBarSearchExample({Key key}) : super(key: key);
+  final String image_url;
+  final String prayer_name;
+  final String tranch;
+  const AppBarSearchExample(
+      {Key key, this.image_url, this.prayer_name, this.tranch})
+      : super(key: key);
 
   @override
   _AppBarSearchExampleState createState() => _AppBarSearchExampleState();
@@ -18,11 +26,14 @@ class _AppBarSearchExampleState extends State<AppBarSearchExample> {
   final List<String> kPostalList; // should contain list of mosques
   _MySearchDelegate _delegate;
   final List<String> postal_codes = [];
+  String id_mosque;
+  String designation;
+  String code_postal;
   _AppBarSearchExampleState()
       :
-    /// here you should inject values into list
+
+        /// here you should inject values into list
         kPostalList = List.from(Set.from(
-          //english_words.all
           List.generate(10000, (index) => index.toString()),
         ))
           ..sort(
@@ -35,40 +46,44 @@ class _AppBarSearchExampleState extends State<AppBarSearchExample> {
   @override
   void initState() {
     super.initState();
+    getMosquDetail();
     _delegate = _MySearchDelegate(kPostalList);
+  }
+
+  Future getMosquDetail() async {
+    var res_id = await RepositeryShared().getMosqueID();
+    if (res_id != null) {
+      var data = await PrayerProvider().PostToGetMosques(id: res_id);
+      print('******* ID for Mosque is ${data[0]['id']} ********');
+      print(
+          '******* designation for Mosque is ${data[0]['designation']} ********');
+      setState(() {
+        id_mosque = data[0]['id'];
+        designation = data[0]['designation'];
+        code_postal = data[0]['code_postal'];
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-//      floatingActionButton: FloatingActionButton(
-//        child: Icon(Icons.search),
-//        backgroundColor: Colors.teal,
-//        foregroundColor: Colors.white,
-//        onPressed: () async {
-//          //PrayerProvider().getUrlInformation();
-//          final String selected = await showSearch<String>(
-//            context: context,
-//            delegate: _delegate,
-//          );
-//          if (selected != null) {
-//            ScaffoldMessenger.of(context).showSnackBar(
-//              SnackBar(
-//                content: Text('You have selected the word: $selected'),
-//              ),
-//            );
-//          }
-//        },
-//      ),
       appBar: AppBar(
         // backgroundColor: Colors.white,
         automaticallyImplyLeading: false,
-        title: Text('Cherche {code postale}', style: TextStyle(color: Colors.teal),),
+        title: Text(
+          'Cherche {code postale}',
+          style: TextStyle(color: Colors.teal),
+        ),
         centerTitle: true,
         actions: <Widget>[
           IconButton(
             tooltip: 'GET',
-            icon: const Icon(Icons.search, color: Colors.teal, size: 28,),
+            icon: const Icon(
+              Icons.search,
+              color: Colors.teal,
+              size: 28,
+            ),
             onPressed: () async {
               final String selected = await showSearch<String>(
                 context: context,
@@ -84,33 +99,63 @@ class _AppBarSearchExampleState extends State<AppBarSearchExample> {
             },
           ),
         ],
+        leading: IconButton(
+          tooltip: 'GET',
+          icon: const Icon(
+            Icons.arrow_back_ios,
+            color: Colors.teal,
+            size: 28,
+          ),
+          onPressed: () async {
+            // await getMosquDetail();
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => AccueilPage(),
+              ),
+            );
+          },
+        ),
       ),
       body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(32),
+          padding: const EdgeInsets.all(12),
           child: Column(
             children: [
-              Container(
-                child: Image.asset('assets/images/prayer_mosque.png'),
-              ),
-              SizedBox(
-                height: 26,
-              ),
-              Text(
-                'cherche le mosquée le plus proche en utilisant le code postal',
-                style: TextStyle(
-                  fontSize: 20,
-                ),
-              ),
+              designation == null
+                  ? Center(
+                      child: Text('selection une mosque favorite stp'),
+                    )
+                  : Card(
+                      child: ListTile(
+                        leading: Container(
+                          child: Image.asset('assets/images/prayer_mosque.png'),
+                        ),
+                        title: Text(designation ?? 'Mosque name'),
+                        subtitle: Text(code_postal ?? 'Code Postal'),
+                        trailing: Icon(
+                          Icons.favorite,
+                          color: Colors.redAccent,
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => BookingPrayer(
+                                id: id_mosque,
+                                mosque_name: designation,
+                                image_url: widget.image_url,
+                                prayer: widget.prayer_name,
+                                tranch: widget.tranch,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
             ],
           ),
         ),
-//        ListView.builder(
-//          itemCount: kEnglishWords.length,
-//          itemBuilder: (context, idx) => ListTile(
-//            title: Text(kEnglishWords[idx]),
-//          ),
-//        ),
       ),
     );
   }
@@ -160,11 +205,36 @@ class _MySearchDelegate extends SearchDelegate<String> {
                 // `showSearch()` above.
                 this.close(context, this.query);
               },
-              child: Text(
-                this.query,
-                style: Theme.of(context).textTheme.headline4.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+              child: Column(
+                children: [
+                  Text(
+                    this.query,
+                    style: Theme.of(context).textTheme.headline4.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  SizedBox(
+                    height: 32,
+                  ),
+                  RaisedButton(
+                      child: Text('Explore'),
+                      onPressed: () async {
+                        /// Go into Screen of Mosques :
+                        var list_inf = await PrayerProvider().PostSearchMosques(
+                            postal_code: '${query.toString()}');
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => MosquesList(
+                              list_mosques: list_inf,
+//                              image_url: widget.image_url,
+//                              prayer_name: widget.prayer_name,
+//                              tranch : widget.tranch,
+                            ),
+                          ),
+                        );
+                      }),
+                ],
               ),
             ),
           ],
@@ -255,7 +325,8 @@ class _SuggestionList extends StatelessWidget {
               onSelected(e.adresse);
             });
             */
-            var list_inf = await PrayerProvider().PostSearchMosques(postal_code: '${suggestion.toString()}');
+            var list_inf = await PrayerProvider()
+                .PostSearchMosques(postal_code: '${suggestion.toString()}');
             Navigator.push(
               context,
               MaterialPageRoute(
@@ -264,7 +335,6 @@ class _SuggestionList extends StatelessWidget {
                 ),
               ),
             );
-
             //onSelected(suggestion); /// suggestion
           },
         );

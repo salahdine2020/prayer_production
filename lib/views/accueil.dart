@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:prayer_production/controller/api_provider.dart';
+import 'package:prayer_production/models/prayer_times_model.dart';
+import 'package:prayer_production/repository/shared_base.dart';
+import 'package:prayer_production/views/resarvation_prayer.dart';
 import 'package:prayer_production/widgets/search_mosque.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 class AccueilPage extends StatefulWidget {
   @override
@@ -8,10 +12,119 @@ class AccueilPage extends StatefulWidget {
 }
 
 class _AccueilPageState extends State<AccueilPage> {
+  String id_mosque;
+  String designation;
+  bool _resstatus;
+  String _resprayer;
+  bool state_sobh = false;
+  Future getTestBooking() async {
+    var res_status = await RepositeryShared().getBookingStatus();
+    var res_prayer = await RepositeryShared().getBookingPrayer();
+    setState(() {
+      _resprayer = res_prayer;
+      _resstatus = res_status;
+    });
+    print('******* status $_resstatus  prayer is $_resprayer ********');
+  }
+
   Future getList() async {
     var list_val = await PrayerProvider().getPrayerTime();
     print('the List of values is : $list_val');
     return list_val;
+  }
+
+  Future getTimePrayer() async {
+    var res_id = await RepositeryShared().getMosqueID();
+    var list_prayer =
+        await PrayerProvider().PostToGetTimePrayer(id_mosque: res_id);
+    return list_prayer;
+  }
+
+  Future<bool> functionToChoice() async {
+    var choice = await RepositeryShared().getMosqueID;
+    if (choice != null) {
+      return true;
+    } else if (choice == null) {
+      return false;
+    }
+  }
+
+  Future getMosquDetail() async {
+    var res_id = await RepositeryShared().getMosqueID();
+    var data = await PrayerProvider().PostToGetMosques(id: res_id);
+    print('******* ID for Mosque is ${data[0]['id']} ********');
+    print(
+        '******* designation for Mosque is ${data[0]['designation']} ********');
+    setState(() {
+      id_mosque = data[0]['id'];
+      designation = data[0]['designation'];
+    });
+  }
+
+  Future<void> _showMyDialog() async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // user must tap button!
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Code Bar de Resarvation'),
+          content: SingleChildScrollView(
+            child: Center(
+              child:
+
+              FutureBuilder(
+                future: RepositeryShared().getBarCode(),
+                builder: (context,snapshot){
+                  return Container(
+                    width: 160,
+                    height: 160,
+                    child: QrImage(
+                      data: snapshot.data.toString(),
+                      version: QrVersions.auto,
+                      //size: 200.0,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+          actions: <Widget>[
+            InkWell(
+              child: Container(
+                child: Container(
+                  height: MediaQuery.of(context).size.height *
+                      .07, //16,//kSpacingUnit.w * 5,
+                  width: MediaQuery.of(context).size.width *
+                      .75, //48,//kSpacingUnit.w * 30,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(
+                      4, //kSpacingUnit.w * 1.5,
+                    ),
+                    color: Theme.of(context).accentColor,
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Supprime la Resarvation',
+                    ),
+                  ),
+                ),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    getTestBooking();
+    getMosquDetail();
+    super.initState();
   }
 
   @override
@@ -24,8 +137,21 @@ class _AccueilPageState extends State<AccueilPage> {
           'Accueil',
           style: TextStyle(color: Colors.teal),
         ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.settings),
+            onPressed: () async {
+              await getTestBooking();
+              //await getTestBooking();
+              //await getFieldInformation();
+              //RepositeryShared().removeSeenScreen();
+              //getMosquDetail();
+              /// Go in seconde Screen to select from one mosque prayer tranche time
+            },
+          ),
+        ],
       ),
-     // backgroundColor: Colors.white.withOpacity(.9),
+      // backgroundColor: Colors.white.withOpacity(.9),
       body: CardPrayerWidget(context),
     );
   }
@@ -37,120 +163,271 @@ class _AccueilPageState extends State<AccueilPage> {
       shrinkWrap: true,
       children: [
         FutureBuilder(
-            future: getList(),
+            future: functionToChoice(),
             builder: (context, snapshot) {
+              print(
+                  '****** if ID dont null ${snapshot.data.toString()} *********');
               if (snapshot.hasError) {
                 return Center(child: Text('Something went wrong'));
               }
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return Center(child: CircularProgressIndicator());
               }
-              return Padding(
-                padding: const EdgeInsets.all(8),
-                child: Card(
-                  elevation: 8,
-                  child: Container(
-                    child: Column(
-                      children: [
-                        Center(
-                          child: ListTile(
-                            leading: Icon(
-                              Icons.date_range,
-                              size: 48,
-                            ),
-                            title: Text(
-                              'Aujourdhui',
-                              style: TextStyle(fontSize: 20),
-                            ),
-                            subtitle: Row(
-                              children: [
-                                Text(
-                                  'Date : ' + snapshot.data[10].toString() ??
-                                      'null',
-                                  style: TextStyle(fontSize: 16),
-                                ),
-                              ],
-                            ),
-                            trailing: IconButton(
-                              icon: Icon(
-                                Icons.refresh,
-                                size: 32,
+              return snapshot.data == true
+                  ?
+                  // for mosque favorite
+                  // type : <List<Data_times>>
+                  FutureBuilder(
+                      future: getTimePrayer(),
+                      builder: (context, snapshot) {
+                        DateTime now = DateTime.now();
+                        DateTime date = DateTime(now.year, now.month, now.day);
+                        if (!snapshot.hasData) {
+                          return Padding(
+                            padding: const EdgeInsets.all(48),
+                            child: Center(
+                                child: Text(
+                                    'Les heures de prière ne sont pas disponibles')),
+                          );
+                        }
+                        if (snapshot.hasError) {
+                          return Center(child: Text('Something went wrong'));
+                        }
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return Center(child: CircularProgressIndicator());
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Card(
+                            elevation: 8,
+                            child: Container(
+                              child: Column(
+                                children: [
+                                  Center(
+                                    child: ListTile(
+                                      leading: Icon(
+                                        Icons.date_range,
+                                        size: 48,
+                                      ),
+                                      title: Text(
+                                        'Aujourdhui',
+                                        style: TextStyle(fontSize: 20),
+                                      ),
+                                      subtitle: Row(
+                                        children: [
+                                          Text(
+                                            'Date : ' +
+                                                date.year.toString() +
+                                                '-' +
+                                                date.month.toString() +
+                                                '-' +
+                                                date.day.toString(),
+                                            style: TextStyle(fontSize: 16),
+                                          ),
+                                        ],
+                                      ),
+                                      trailing: IconButton(
+                                        icon: Icon(
+                                          Icons.refresh,
+                                          size: 32,
+                                        ),
+                                        onPressed: () {
+                                          setState(() {
+                                            getTimePrayer();
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                  ListTile(
+                                    title: Text(
+                                      'Fajr',
+                                      style: TextStyle(fontSize: 22),
+                                    ),
+                                    trailing: Text(
+                                      snapshot.data[0].heure.toString(),
+                                      style: TextStyle(fontSize: 22),
+                                    ),
+                                  ),
+                                  Divider(
+                                    color: Colors.teal,
+                                  ),
+                                  ListTile(
+                                    title: Text(
+                                      'Dohr',
+                                      style: TextStyle(fontSize: 22),
+                                    ),
+                                    trailing: Text(
+                                      snapshot.data[1].heure.toString(),
+                                      style: TextStyle(fontSize: 22),
+                                    ),
+                                  ),
+                                  Divider(
+                                    color: Colors.teal,
+                                  ),
+                                  ListTile(
+                                    title: Text(
+                                      'Asr',
+                                      style: TextStyle(fontSize: 22),
+                                    ),
+                                    trailing: Text(
+                                      snapshot.data[2].heure.toString(),
+                                      style: TextStyle(fontSize: 22),
+                                    ),
+                                  ),
+                                  Divider(
+                                    color: Colors.teal,
+                                  ),
+                                  ListTile(
+                                    title: Text(
+                                      'Maghrib',
+                                      style: TextStyle(fontSize: 22),
+                                    ),
+                                    trailing: Text(
+                                      snapshot.data[3].heure.toString(),
+                                      style: TextStyle(fontSize: 22),
+                                    ),
+                                  ),
+                                  Divider(
+                                    color: Colors.teal,
+                                  ),
+                                  ListTile(
+                                    title: Text(
+                                      'Isha',
+                                      style: TextStyle(fontSize: 22),
+                                    ),
+                                    trailing: Text(
+                                      snapshot.data[4].heure.toString(),
+                                      style: TextStyle(fontSize: 22),
+                                    ),
+                                  ),
+                                ],
                               ),
-                              onPressed: () {
-                                setState(() {
-                                  getList();
-                                });
-                              },
                             ),
                           ),
-                        ),
-                        ListTile(
-                          title: Text(
-                            'Fajr',
-                            style: TextStyle(fontSize: 22),
+                        );
+                      })
+                  : FutureBuilder(
+                      future: getList(),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasError) {
+                          return Center(child: Text('Something went wrong'));
+                        }
+                        if (snapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return Center(child: CircularProgressIndicator());
+                        }
+                        return Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Card(
+                            elevation: 8,
+                            child: Container(
+                              child: Column(
+                                children: [
+                                  Center(
+                                    child: ListTile(
+                                      leading: Icon(
+                                        Icons.date_range,
+                                        size: 48,
+                                      ),
+                                      title: Text(
+                                        'Aujourdhui',
+                                        style: TextStyle(fontSize: 20),
+                                      ),
+                                      subtitle: Row(
+                                        children: [
+                                          Text(
+                                            'Date : ' +
+                                                    snapshot.data[10]
+                                                        .toString() ??
+                                                'null',
+                                            style: TextStyle(fontSize: 16),
+                                          ),
+                                        ],
+                                      ),
+                                      trailing: IconButton(
+                                        icon: Icon(
+                                          Icons.refresh,
+                                          size: 32,
+                                        ),
+                                        onPressed: () {
+                                          setState(() {
+                                            getList();
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                  ListTile(
+                                    title: Text(
+                                      'Fajr',
+                                      style: TextStyle(fontSize: 22),
+                                    ),
+                                    trailing: Text(
+                                      snapshot.data[2].toString(),
+                                      style: TextStyle(fontSize: 22),
+                                    ),
+                                  ),
+                                  Divider(
+                                    color: Colors.teal,
+                                  ),
+                                  ListTile(
+                                    title: Text(
+                                      'Dohr',
+                                      style: TextStyle(fontSize: 22),
+                                    ),
+                                    trailing: Text(
+                                      snapshot.data[5].toString(),
+                                      style: TextStyle(fontSize: 22),
+                                    ),
+                                  ),
+                                  Divider(
+                                    color: Colors.teal,
+                                  ),
+                                  ListTile(
+                                    title: Text(
+                                      'Asr',
+                                      style: TextStyle(fontSize: 22),
+                                    ),
+                                    trailing: Text(
+                                      snapshot.data[6].toString(),
+                                      style: TextStyle(fontSize: 22),
+                                    ),
+                                  ),
+                                  Divider(
+                                    color: Colors.teal,
+                                  ),
+                                  ListTile(
+                                    title: Text(
+                                      'Maghrib',
+                                      style: TextStyle(fontSize: 22),
+                                    ),
+                                    trailing: Text(
+                                      snapshot.data[7].toString(),
+                                      style: TextStyle(fontSize: 22),
+                                    ),
+                                  ),
+                                  Divider(
+                                    color: Colors.teal,
+                                  ),
+                                  ListTile(
+                                    title: Text(
+                                      'Isha',
+                                      style: TextStyle(fontSize: 22),
+                                    ),
+                                    trailing: Text(
+                                      snapshot.data[8].toString(),
+                                      style: TextStyle(fontSize: 22),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                          trailing: Text(
-                            snapshot.data[2].toString(),
-                            style: TextStyle(fontSize: 22),
-                          ),
-                        ),
-                        Divider(
-                          color: Colors.teal,
-                        ),
-                        ListTile(
-                          title: Text(
-                            'Dohr',
-                            style: TextStyle(fontSize: 22),
-                          ),
-                          trailing: Text(
-                            snapshot.data[5].toString(),
-                            style: TextStyle(fontSize: 22),
-                          ),
-                        ),
-                        Divider(
-                          color: Colors.teal,
-                        ),
-                        ListTile(
-                          title: Text(
-                            'Asr',
-                            style: TextStyle(fontSize: 22),
-                          ),
-                          trailing: Text(
-                            snapshot.data[6].toString(),
-                            style: TextStyle(fontSize: 22),
-                          ),
-                        ),
-                        Divider(
-                          color: Colors.teal,
-                        ),
-                        ListTile(
-                          title: Text(
-                            'Maghrib',
-                            style: TextStyle(fontSize: 22),
-                          ),
-                          trailing: Text(
-                            snapshot.data[7].toString(),
-                            style: TextStyle(fontSize: 22),
-                          ),
-                        ),
-                        Divider(
-                          color: Colors.teal,
-                        ),
-                        ListTile(
-                          title: Text(
-                            'Isha',
-                            style: TextStyle(fontSize: 22),
-                          ),
-                          trailing: Text(
-                            snapshot.data[8].toString(),
-                            style: TextStyle(fontSize: 22),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
+                        );
+                      });
+              // for mosque by default
             }),
         ListPrayerWidget(context),
       ],
@@ -160,42 +437,349 @@ class _AccueilPageState extends State<AccueilPage> {
   Widget ListPrayerWidget(BuildContext context) {
     double hight = MediaQuery.of(context).size.height;
     double wight = MediaQuery.of(context).size.width;
-    return Padding(
-      padding: const EdgeInsets.all(8),
-      child: Row(
-        children: [
-          BookPrayer(
-            wight: wight,
-            hight: hight,
-            prayer_title: 'Fajr',
-            imageasset: 'assets/images/fajr_icon.png',
-          ),
-          BookPrayer(
-            wight: wight,
-            hight: hight,
-            prayer_title: 'Dohr',
-            imageasset: 'assets/images/dohr_icon.png',
-          ),
-          BookPrayer(
-            wight: wight,
-            hight: hight,
-            prayer_title: 'Asr',
-            imageasset: 'assets/images/asr_icon.png',
-          ),
-          BookPrayer(
-            wight: wight,
-            hight: hight,
-            prayer_title: 'Maghrib',
-            imageasset: 'assets/images/maghrib_icon.png',
-          ),
-          BookPrayer(
-            wight: wight,
-            hight: hight,
-            prayer_title: 'Ishaa',
-            imageasset: 'assets/images/ichaa_icon.png',
-          ),
-        ],
+    return GestureDetector(
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Row(
+          children: [
+            InkWell(
+              child: Container(
+                width: wight * .19,
+                height: hight * .18,
+                child: Card(
+                  //color: Colors.white,
+                  child: Column(
+                    children: [
+                      Container(
+                        height: hight * .07,
+                        width: wight * .18,
+                        child: Image.asset('assets/images/fajr_icon.png'),
+                        ///  Image.asset('assets/images/fajr_icon.png'),
+                        ///  variable
+                      ),
+                      SizedBox(
+                        height: 16,
+                      ),
+                      Text('Fajr'),
+                      SizedBox(
+                        height: 15,
+                      ),
+                      FutureBuilder(
+                          future: RepositeryShared().getBookingPrayer(),
+                          builder: (context, snapshot) {
+                            return FutureBuilder(
+                                future: RepositeryShared().getBookingStatus(),
+                                builder: (context, snapshot1) {
+                                  if (snapshot.data == 'Sobh' && snapshot1.data == true) {
+                                    state_sobh = true;
+                                    return Container(
+                                      width: wight * .17,
+                                      height: hight * .009,
+                                      color: Colors.greenAccent,
+                                    );
+                                  } else{
+                                    return Container(
+                                      width: wight * .17,
+                                      height: hight * .009,
+                                      color: Colors.redAccent,
+                                    );
+                                  }
+                                });
+                          }),
+                    ],
+                  ),
+                ),
+              ),
+//              BookPrayer(
+//                wight: wight,
+//                hight: hight,
+//                prayer_title: 'Fajr',
+//                imageasset: 'assets/images/fajr_icon.png',
+//              ),
+              onTap: () {
+                /// go into booking screen
+                print('booking for Fajr');
+                if (state_sobh == false) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AppBarSearchExample(
+                        // prayer title and Image should pass it here
+                        image_url: 'assets/images/fajr_icon.png',
+                        prayer_name: 'Sobh',
+                        tranch: 'tranche_sobh',
+                      ),
+                    ),
+                  );
+                } else if (state_sobh == true) {
+                  _showMyDialog();
+                }
+              },
+            ),
+            InkWell(
+              child: Container(
+                width: wight * .19,
+                height: hight * .18,
+                child: Card(
+                  //color: Colors.white,
+                  child: Column(
+                    children: [
+                      Container(
+                        height: hight * .07,
+                        width: wight * .18,
+                        child: Image.asset(
+                            'assets/images/dohr_icon.png'), //Image.asset('assets/images/fajr_icon.png'),
+                        ///  variable
+                      ),
+                      SizedBox(
+                        height: 16,
+                      ),
+                      Text('Dohr'),
+                      SizedBox(
+                        height: 15,
+                      ),
+                      FutureBuilder(
+                          future: RepositeryShared().getBookingPrayer(),
+                          builder: (context, snapshot) {
+                            return FutureBuilder(
+                                future: RepositeryShared().getBookingStatus(),
+                                builder: (context, snapshot1) {
+                                  return Container(
+                                    width: wight * .17,
+                                    height: hight * .009,
+                                    color: (snapshot.data == 'Dohr' &&
+                                            snapshot1.data == true)
+                                        ? Colors.greenAccent
+                                        : Colors.redAccent,
+                                  );
+                                });
+                          }),
+                    ],
+                  ),
+                ),
+              ),
+//              BookPrayer(
+//                wight: wight,
+//                hight: hight,
+//                prayer_title: 'Dohr',
+//                imageasset: 'assets/images/dohr_icon.png',
+//              ),
+              onTap: () {
+                /// go into booking screen
+                print('booking for Dohr');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AppBarSearchExample(
+                      // prayer title and Image should pass it here
+                      image_url: 'assets/images/dohr_icon.png',
+                      prayer_name: 'Dohr',
+                      tranch: 'tranche_dohr',
+                    ),
+                  ),
+                );
+              },
+            ),
+            InkWell(
+              child: Container(
+                width: wight * .19,
+                height: hight * .18,
+                child: Card(
+                  //color: Colors.white,
+                  child: Column(
+                    children: [
+                      Container(
+                        height: hight * .07,
+                        width: wight * .18,
+                        child: Image.asset(
+                            'assets/images/asr_icon.png'), //Image.asset('assets/images/fajr_icon.png'),
+                        ///  variable
+                      ),
+                      SizedBox(
+                        height: 16,
+                      ),
+                      Text('Asr'),
+                      SizedBox(
+                        height: 15,
+                      ),
+                      FutureBuilder(
+                          future: RepositeryShared().getBookingPrayer(),
+                          builder: (context, snapshot) {
+                            return FutureBuilder(
+                                future: RepositeryShared().getBookingStatus(),
+                                builder: (context, snapshot1) {
+                                  return Container(
+                                    width: wight * .17,
+                                    height: hight * .009,
+                                    color: (snapshot.data == 'Asr' &&
+                                            snapshot1.data == true)
+                                        ? Colors.greenAccent
+                                        : Colors.redAccent,
+                                  );
+                                });
+                          }),
+                    ],
+                  ),
+                ),
+              ),
+//              BookPrayer(
+//                wight: wight,
+//                hight: hight,
+//                prayer_title: 'Asr',
+//                imageasset: 'assets/images/asr_icon.png',
+//              ),
+              onTap: () {
+                /// go into booking screen
+                print('booking for Asr');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AppBarSearchExample(
+                      // prayer title and Image should pass it here
+                      image_url: 'assets/images/asr_icon.png',
+                      prayer_name: 'Asr',
+                      tranch: "tranche_asr",
+                    ),
+                  ),
+                );
+              },
+            ),
+            InkWell(
+              child: Container(
+                width: wight * .19,
+                height: hight * .18,
+                child: Card(
+                  //color: Colors.white,
+                  child: Column(
+                    children: [
+                      Container(
+                        height: hight * .07,
+                        width: wight * .18,
+                        child: Image.asset(
+                            'assets/images/maghrib_icon.png'), //Image.asset('assets/images/fajr_icon.png'),
+                        ///  variable
+                      ),
+                      SizedBox(
+                        height: 16,
+                      ),
+                      Text('Maghrib'),
+                      SizedBox(
+                        height: 15,
+                      ),
+                      FutureBuilder(
+                          future: RepositeryShared().getBookingPrayer(),
+                          builder: (context, snapshot) {
+                            return FutureBuilder(
+                                future: RepositeryShared().getBookingStatus(),
+                                builder: (context, snapshot1) {
+                                  return Container(
+                                    width: wight * .17,
+                                    height: hight * .009,
+                                    color: (snapshot.data == 'Maghrib' &&
+                                            snapshot1.data == true)
+                                        ? Colors.greenAccent
+                                        : Colors.redAccent,
+                                  );
+                                });
+                          }),
+                    ],
+                  ),
+                ),
+              ),
+
+//              BookPrayer(
+//                wight: wight,
+//                hight: hight,
+//                prayer_title: 'Maghrib',
+//                imageasset: 'assets/images/maghrib_icon.png',
+//              ),
+              onTap: () {
+                /// go into booking screen
+                print('booking for Maghrib');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AppBarSearchExample(
+                      // prayer title and Image should pass it here
+                      image_url: 'assets/images/maghrib_icon.png',
+                      prayer_name: 'Maghrib',
+                      tranch: "tranche_maghrib",
+                    ),
+                  ),
+                );
+              },
+            ),
+            InkWell(
+              child: Container(
+                width: wight * .19,
+                height: hight * .18,
+                child: Card(
+                  //color: Colors.white,
+                  child: Column(
+                    children: [
+                      Container(
+                        height: hight * .07,
+                        width: wight * .18,
+                        child: Image.asset(
+                            'assets/images/ichaa_icon.png'), //Image.asset('assets/images/fajr_icon.png'),
+                        ///  variable
+                      ),
+                      SizedBox(
+                        height: 16,
+                      ),
+                      Text('Ishaa'),
+                      SizedBox(
+                        height: 15,
+                      ),
+                      FutureBuilder(
+                          future: RepositeryShared().getBookingPrayer(),
+                          builder: (context, snapshot) {
+                            return FutureBuilder(
+                                future: RepositeryShared().getBookingStatus(),
+                                builder: (context, snapshot1) {
+                                  return Container(
+                                    width: wight * .17,
+                                    height: hight * .009,
+                                    color: (snapshot.data == 'Ishaa' &&
+                                            snapshot1.data == true)
+                                        ? Colors.greenAccent
+                                        : Colors.redAccent,
+                                  );
+                                });
+                          }),
+                    ],
+                  ),
+                ),
+              ),
+
+//              BookPrayer(
+//                wight: wight,
+//                hight: hight,
+//                prayer_title: 'Ishaa',
+//                imageasset: 'assets/images/ichaa_icon.png',
+//              ),
+              onTap: () {
+                /// go into booking screen
+                print('booking for Isha');
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => AppBarSearchExample(
+                      // prayer title and Image should pass it here
+                      image_url: 'assets/images/ichaa_icon.png',
+                      prayer_name: 'Isha',
+                      tranch: "tranche_ichaa",
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
+      onTap: () {
+        print('card prayer clicked');
+      },
     );
   }
 }
@@ -223,11 +807,10 @@ class BookPrayer extends StatelessWidget {
         child: Column(
           children: [
             Container(
-              height: hight * .09,
+              height: hight * .07,
               width: wight * .18,
               child: Image.asset(
                   imageasset), //Image.asset('assets/images/fajr_icon.png'),
-
               ///  variable
             ),
             SizedBox(
@@ -240,7 +823,9 @@ class BookPrayer extends StatelessWidget {
             Container(
               width: wight * .17,
               height: hight * .009,
-              color: Colors.redAccent,
+              color: prayer_title == 'Isha'
+                  ? Colors.greenAccent
+                  : Colors.redAccent,
             ),
           ],
         ),

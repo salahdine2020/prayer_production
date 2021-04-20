@@ -38,8 +38,9 @@ class Data {
   String ville;
   String login;
   String pass;
-  String maxPlace;
+  String maxPlace; // max places in groupe
   String finishTime;
+  /// tranche is groupe
   String trancheSobh;
   String trancheDohr;
   String trancheAsr;

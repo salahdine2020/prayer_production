@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:introduction_screen/introduction_screen.dart';
+import 'package:prayer_production/repository/shared_base.dart';
 import 'package:prayer_production/views/signup.dart';
 
 class OnBoardingPage extends StatefulWidget {
@@ -13,7 +14,8 @@ class _OnBoardingPageState extends State<OnBoardingPage> {
   void _onIntroEnd(context) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (context) => SignupPage(),//SignUpForm(),//SignUpScreen(),//Register(),
+        builder: (context) =>
+            SignupPage(), //SignUpForm(),//SignUpScreen(),//Register(),
       ),
     );
   }
@@ -41,7 +43,7 @@ class _OnBoardingPageState extends State<OnBoardingPage> {
       titleTextStyle: TextStyle(fontSize: 28.0, fontWeight: FontWeight.w700),
       bodyTextStyle: bodyStyle,
       descriptionPadding: EdgeInsets.fromLTRB(16.0, 0.0, 16.0, 16.0),
-     // pageColor: Colors.white,
+      // pageColor: Colors.white,
       imagePadding: EdgeInsets.zero,
     );
 
@@ -53,7 +55,7 @@ class _OnBoardingPageState extends State<OnBoardingPage> {
         child: SafeArea(
           child: Padding(
             padding: const EdgeInsets.only(top: 16, right: 16),
-           // child: _buildImage('images/prayer_mosque.png', 100),
+            // child: _buildImage('images/prayer_mosque.png', 100),
           ),
         ),
       ),
@@ -100,8 +102,14 @@ class _OnBoardingPageState extends State<OnBoardingPage> {
           decoration: pageDecoration,
         ),
       ],
-      onDone: () => _onIntroEnd(context),
-      //onSkip: () => _onIntroEnd(context), // You can override onSkip callback
+      onDone: () async {
+        _onIntroEnd(context);
+        await RepositeryShared().saveSeenScreen(seen: true);
+      },
+//      onSkip: () async {
+//        _onIntroEnd(context);
+//        await RepositeryShared().saveSeenScreen(seen: true);
+//      }, // You can override onSkip callback
       showSkipButton: true,
       skipFlex: 0,
       nextFlex: 0,

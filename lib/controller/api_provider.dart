@@ -1,17 +1,19 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:intl/intl.dart';
 import 'package:prayer_production/models/download_user_inf.dart';
 import 'package:prayer_production/models/prayer_model.dart';
-import 'package:prayer_production/models/search_mosques_model.dart' ;
-import 'package:prayer_production/models/servicesbymosque_model.dart' as service_model;
+import 'package:prayer_production/models/prayer_times_model.dart';
+import 'package:prayer_production/models/search_mosques_model.dart';
+import 'package:prayer_production/models/servicesbymosque_model.dart'
+    as service_model;
 import 'package:prayer_production/repository/shared_base.dart';
 import 'package:prayer_production/utils/logging_interceptor.dart';
 import 'package:http/http.dart' as http;
 
 class PrayerProvider {
   String city_me = 'brussels'; //mecca
-  final String _endpoint2 =
-      "https://api.pray.zone/v2/times/today.json?city=brussels&fbclid=IwAR1NaVff729cKRBOWheoKHk_G1yI3QWe_C3po6h9g8xNTQh9xQYpKl5hfM8";
+  final String _endpoint2 = "https://api.pray.zone/v2/times/today.json?city=brussels&fbclid=IwAR1NaVff729cKRBOWheoKHk_G1yI3QWe_C3po6h9g8xNTQh9xQYpKl5hfM8";
   final String _endpoint3 = 'https://allocomcompany.com/prayer_organizer';
   final String _search_mosque = '/api_update.php?action=get_mosques';
   final String _inscription_user = '/api_update.php?action=add_person';
@@ -19,6 +21,11 @@ class PrayerProvider {
   final String _mosque_inf = '/api_update.php?action=get_info_mosque';
   final String _mosque_service = '/api_update.php?action=get_services';
   final String _user_inf_download = '/api_update.php?action=get_info_person';
+  final String _getmosqueprayer = "/api_update.php?action=get_heure_priere";
+  final String _add_inscription_prayer = '/api_update.php?action=add_relation';
+  final String _update_user = '/api_update.php?action=update_person';
+  final String _delet_relation = '/api_update.php?action=delete_relation';
+  final String _gettranche = '/api_update.php?action=get_tranches';
   Dio _dio;
 
   PrayerProvider() {
@@ -66,6 +73,7 @@ class PrayerProvider {
       //PrayerResponse.withError(_handleError(error));
     }
   }
+
   Future<List<Data>> PostSearchMosques({String postal_code}) async {
     // PrayerResponse
     try {
@@ -90,6 +98,7 @@ class PrayerProvider {
       print("Exception occured: $error stackTrace: $stacktrace");
     }
   }
+
   Future PostToGetMosques({String id}) async {
     try {
       var parms = {
@@ -104,13 +113,16 @@ class PrayerProvider {
         print('v : $v // s : $s');
       });
       /// jsonDecode(response.data)
+      var data = json.decode(response.data);
       print('******* GET Mosque Information ${response.data} ********');
+      return data;
     } catch (error, stacktrace) {
       _handleError(error);
       print("Exception occured: $error stackTrace: $stacktrace");
     }
   }
-  Future<List<service_model.Data>> PostToGetServices ({String id_mosque}) async {
+
+  Future<List<service_model.Data>> PostToGetServices({String id_mosque}) async {
     try {
       var parms = {
         'id_mosque': '$id_mosque',
@@ -123,40 +135,44 @@ class PrayerProvider {
       }, onReceiveProgress: (v, s) {
         print('v : $v // s : $s');
       });
+
       /// jsonDecode(response.data)
       /// GetServices
       var data = json.decode(response.data);
       final data_later = service_model.GetServices.fromJson(data);
       List<service_model.Data> data_list = data_later.data;
-      print('******* GET Services Mosque Information ${data_list.length} ********');
+      print(
+          '******* GET Services Mosque Information ${data_list.length} ********');
       return data_list;
     } catch (error, stacktrace) {
       _handleError(error);
       print("Exception occured: $error stackTrace: $stacktrace");
     }
   }
+
   Future PostFieldInscription({nom, prenom, code_postal, num_telephone, flag_sexe}) async {
     // PrayerResponse
     try {
       //List<String> val_inf = [];
       var parms = {
-      'nom' : nom,
-      'prenom' : prenom,
-      'code_postal': code_postal,
-      'num_telephone' : num_telephone,
-      'flag_sexe': flag_sexe,
-    };
+        'nom': nom,
+        'prenom': prenom,
+        'code_postal': code_postal,
+        'num_telephone': num_telephone,
+        'flag_sexe': flag_sexe,
+        //'sexe': flag_sexe,
+      };
       Response response = await _dio.post(_inscription_user,
           data: parms,
           options: Options(contentType: Headers.formUrlEncodedContentType),
           onSendProgress: (int sent, int total) {
-            print('sent : $sent // total : $total');
-          }, onReceiveProgress: (v, s) {
-            print('v : $v // s : $s');
-          });
+        print('sent : $sent // total : $total');
+      }, onReceiveProgress: (v, s) {
+        print('v : $v // s : $s');
+      });
       var _val = json.decode(response.data);
       print(_val.runtimeType);
-      if(_val is Map) print('succes');
+      if (_val is Map) print('succes');
       print('***** Response body ${_val['id']} **********');
       RepositeryShared().saveUserID(_val);
     } catch (error, stacktrace) {
@@ -164,12 +180,12 @@ class PrayerProvider {
       print("Exception occured: $error stackTrace: $stacktrace");
     }
   }
+
   Future<DownloadUsermModel> PostToDownloadUser({String id}) async {
     try {
-      //List<String> val_inf = [];
       var id_shared = await RepositeryShared().getUserID();
       print('----- id Shared $id_shared ---------');
-      if(id_shared == null){
+      if (id_shared == null) {
         id_shared = id;
       }
       var parms = {
@@ -179,14 +195,149 @@ class PrayerProvider {
           data: parms,
           options: Options(contentType: Headers.formUrlEncodedContentType),
           onSendProgress: (int sent, int total) {
-            print('sent : $sent // total : $total');
-          }, onReceiveProgress: (v, s) {
-            print('v : $v // s : $s');
-          });
+        print('sent : $sent // total : $total');
+      }, onReceiveProgress: (v, s) {
+        print('v : $v // s : $s');
+      });
       print('***** Response body Download User : ${response.data} **********');
       final data_prebare = json.decode(response.data);
       final data = DownloadUsermModel.fromJson(data_prebare[0]);
       print('***** Type of data value : ${data.runtimeType} **********');
+      return data;
+    } catch (error, stacktrace) {
+      _handleError(error);
+      print("Exception occured: $error stackTrace: $stacktrace");
+    }
+  }
+
+  Future<List<Data_times>> PostToGetTimePrayer({String id_mosque}) async {
+    try {
+      var parms = {
+        'id_mosque': '$id_mosque',
+      };
+      Response response = await _dio.post(_getmosqueprayer,
+          data: parms,
+          options: Options(contentType: Headers.formUrlEncodedContentType),
+          onSendProgress: (int sent, int total) {
+        print('sent : $sent // total : $total');
+      }, onReceiveProgress: (v, s) {
+        print('v : $v // s : $s');
+      });
+
+      /// jsonDecode(response.data)
+      final data_time_prayer = json.decode(response.data);
+      final data = PrayerTimesModel.fromJson(data_time_prayer);
+      List<Data_times> times_prayer = data.data;
+      return times_prayer;
+      print('******* GET Data ${times_prayer[0].heure} ********');
+    } catch (error, stacktrace) {
+      _handleError(error);
+      print("Exception occured: $error stackTrace: $stacktrace");
+    }
+  }
+
+  Future<String> PostToUpdateUser({id, nom, prenom, code_postal, num_telephone, flag_sexe}) async {
+    try {
+      var parms = {
+        'nom': nom,
+        'prenom': prenom,
+        'code_postal': code_postal,
+        'num_telephone': num_telephone,
+        'flag_sexe': flag_sexe,
+        'id': id,
+        //'sexe': flag_sexe,
+      };
+      Response response = await _dio.post(_update_user,
+          data: parms,
+          options: Options(contentType: Headers.formUrlEncodedContentType),
+          onSendProgress: (int sent, int total) {
+        print('sent : $sent // total : $total');
+      }, onReceiveProgress: (v, s) {
+        print('v : $v // s : $s');
+      });
+
+      /// jsonDecode(response.data)
+      Map data = json.decode(response.data);
+      print('******* GET Data ${data['message']} ********');
+      return data['message'].toString();
+    } catch (error, stacktrace) {
+      _handleError(error);
+      print("Exception occured: $error stackTrace: $stacktrace");
+    }
+  }
+
+  Future PostToInscriptioPrayer({id_mosque, id_person, id_prayer, id_tranche, date_heure, code, date}) async {
+    try {
+      var parms = {
+        'id_mosque': id_mosque,
+        'id_person': id_person,
+        'id_prayer': id_prayer,
+        'id_tranche': id_tranche,
+        'date_heure': date_heure,
+        'code': code,
+        'date': date,
+      };
+      Response response = await _dio.post(_add_inscription_prayer,
+          data: parms,
+          options: Options(contentType: Headers.formUrlEncodedContentType),
+          onSendProgress: (int sent, int total) {
+        print('sent : $sent // total : $total');
+      }, onReceiveProgress: (v, s) {
+        print('v : $v // s : $s');
+      });
+      /// jsonDecode(response.data)
+      Map data = json.decode(response.data);
+      print('******* GET Data Inscription Prayer ${data} ********');
+      return data;
+    } catch (error, stacktrace) {
+      _handleError(error);
+      print("Exception occured: $error stackTrace: $stacktrace");
+    }
+  }
+
+  Future PostToGetPrayerItemInformation({id_mosque, id_prayer}) async {
+    try {
+      var parms = {
+        'id_mosque' : id_mosque,
+        'id_prayer' : id_prayer,
+        'date' :  DateFormat('yyyy-MM-dd').format(DateTime.now()),
+      };
+      Response response = await _dio.post(_gettranche,
+          data: parms,
+          options: Options(contentType: Headers.formUrlEncodedContentType),
+          onSendProgress: (int sent, int total) {
+            print('sent : $sent // total : $total');
+          }, onReceiveProgress: (v, s) {
+            print('v : $v // s : $s');
+          });
+
+      /// jsonDecode(response.data)
+      Map data = json.decode(response.data);
+      print('******* GET Data Prayer when doing Inscription : ${data} ********');
+      return data;
+    } catch (error, stacktrace) {
+      _handleError(error);
+      print("Exception occured: $error stackTrace: $stacktrace");
+    }
+  }
+
+  Future PostToDeletInscoPrayer({id_relation}) async {
+    try {
+      var parms = {
+        'id_relation' : id_relation,
+      };
+      Response response = await _dio.post(_delet_relation,
+          data: parms,
+          options: Options(contentType: Headers.formUrlEncodedContentType),
+          onSendProgress: (int sent, int total) {
+            print('sent : $sent // total : $total');
+          }, onReceiveProgress: (v, s) {
+            print('v : $v // s : $s');
+          });
+
+      /// jsonDecode(response.data)
+      Map data = json.decode(response.data);
+      print('******* GET Data Inscription Prayer ${data} ********');
       return data;
     } catch (error, stacktrace) {
       _handleError(error);
