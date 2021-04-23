@@ -16,7 +16,14 @@ class _AccueilPageState extends State<AccueilPage> {
   String designation;
   bool _resstatus;
   String _resprayer;
+  String adresse;
+  int _groupeindex;
   bool state_sobh = false;
+  bool state_dohr = false;
+  bool state_asr = false;
+  bool state_maghrib = false;
+  bool state_isha = false;
+
   Future getTestBooking() async {
     var res_status = await RepositeryShared().getBookingStatus();
     var res_prayer = await RepositeryShared().getBookingPrayer();
@@ -51,6 +58,7 @@ class _AccueilPageState extends State<AccueilPage> {
 
   Future getMosquDetail() async {
     var res_id = await RepositeryShared().getMosqueID();
+    var groupe_index = await RepositeryShared().getGroupeIndex();
     var data = await PrayerProvider().PostToGetMosques(id: res_id);
     print('******* ID for Mosque is ${data[0]['id']} ********');
     print(
@@ -58,10 +66,12 @@ class _AccueilPageState extends State<AccueilPage> {
     setState(() {
       id_mosque = data[0]['id'];
       designation = data[0]['designation'];
+      adresse = data[0]['adresse'];
+      _groupeindex = groupe_index + 1;
     });
   }
 
-  Future<void> _showMyDialog() async {
+  Future<void> _showMyDialog({rm}) async {
     return showDialog<void>(
       context: context,
       barrierDismissible: false, // user must tap button!
@@ -69,26 +79,38 @@ class _AccueilPageState extends State<AccueilPage> {
         return AlertDialog(
           title: Text('Code Bar de Resarvation'),
           content: SingleChildScrollView(
-            child: Center(
-              child:
-
-              FutureBuilder(
-                future: RepositeryShared().getBarCode(),
-                builder: (context,snapshot){
-                  return Container(
-                    width: 160,
-                    height: 160,
-                    child: QrImage(
-                      data: snapshot.data.toString(),
-                      version: QrVersions.auto,
-                      //size: 200.0,
-                    ),
-                  );
-                },
-              ),
+            child: Column(
+              children: [
+                Text('Mosquee: ' + designation.toString()),
+                SizedBox(
+                  height: 8,
+                ),
+                Text('Adresse: ' + adresse.toString()),
+                SizedBox(
+                  height: 8,
+                ),
+                Text('Groupe: ' + _groupeindex.toString()),
+                SizedBox(
+                  height: 8,
+                ),
+                FutureBuilder(
+                  future: RepositeryShared().getBarCode(),
+                  builder: (context, snapshot) {
+                    return Container(
+                      width: 160,
+                      height: 160,
+                      child: QrImage(
+                        data: snapshot.data.toString(),
+                        version: QrVersions.auto,
+                        //size: 200.0,
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
           ),
-          actions: <Widget>[
+          actions: [
             InkWell(
               child: Container(
                 child: Container(
@@ -109,7 +131,10 @@ class _AccueilPageState extends State<AccueilPage> {
                   ),
                 ),
               ),
-              onTap: () {
+              onTap: () async {
+                /// code to delet prayer
+                await deletProceces(prayer_remove: rm);
+                await deletRelation();
                 Navigator.pop(context);
               },
             ),
@@ -117,6 +142,17 @@ class _AccueilPageState extends State<AccueilPage> {
         );
       },
     );
+  }
+
+  Future deletRelation() async {
+    var id_relation = await RepositeryShared().getRelationID();
+    await PrayerProvider().PostToDeletInscoPrayer(id_relation: id_relation);
+  }
+
+  Future deletProceces({prayer_remove}) async {
+    await BookingShared().removeBooking(prayer_remove: prayer_remove);
+    //await RepositeryShared().removeBookingStatus();
+    //await RepositeryShared().removeBookingPrayer();
   }
 
   @override
@@ -454,6 +490,7 @@ class _AccueilPageState extends State<AccueilPage> {
                         height: hight * .07,
                         width: wight * .18,
                         child: Image.asset('assets/images/fajr_icon.png'),
+
                         ///  Image.asset('assets/images/fajr_icon.png'),
                         ///  variable
                       ),
@@ -465,26 +502,23 @@ class _AccueilPageState extends State<AccueilPage> {
                         height: 15,
                       ),
                       FutureBuilder(
-                          future: RepositeryShared().getBookingPrayer(),
+                          future: BookingShared().getBookingSobh(),
                           builder: (context, snapshot) {
-                            return FutureBuilder(
-                                future: RepositeryShared().getBookingStatus(),
-                                builder: (context, snapshot1) {
-                                  if (snapshot.data == 'Sobh' && snapshot1.data == true) {
-                                    state_sobh = true;
-                                    return Container(
-                                      width: wight * .17,
-                                      height: hight * .009,
-                                      color: Colors.greenAccent,
-                                    );
-                                  } else{
-                                    return Container(
-                                      width: wight * .17,
-                                      height: hight * .009,
-                                      color: Colors.redAccent,
-                                    );
-                                  }
-                                });
+                            if (snapshot.data[0] == 'Sobh' &&
+                                snapshot.data[1] == true) {
+                              state_sobh = true;
+                              return Container(
+                                width: wight * .17,
+                                height: hight * .009,
+                                color: Colors.greenAccent,
+                              );
+                            } else {
+                              return Container(
+                                width: wight * .17,
+                                height: hight * .009,
+                                color: Colors.redAccent,
+                              );
+                            }
                           }),
                     ],
                   ),
@@ -512,7 +546,85 @@ class _AccueilPageState extends State<AccueilPage> {
                     ),
                   );
                 } else if (state_sobh == true) {
-                  _showMyDialog();
+                  _showMyDialog(rm: 'Sobh');
+                  setState(() {
+                    state_sobh = false;
+                  });
+                }
+              },
+            ),
+            InkWell(
+              child: Container(
+                width: wight * .19,
+                height: hight * .18,
+                child: Card(
+                  //color: Colors.white,
+                  child: Column(
+                    children: [
+                      Container(
+                        height: hight * .07,
+                        width: wight * .18,
+                        child: Image.asset('assets/images/dohr_icon.png'),
+
+                        /// Image.asset('assets/images/fajr_icon.png'),
+                        ///  variable
+                      ),
+                      SizedBox(
+                        height: 16,
+                      ),
+                      Text('Dohr'),
+                      SizedBox(
+                        height: 15,
+                      ),
+                      FutureBuilder(
+                          future: BookingShared().getBookingDohr(),
+                          builder: (context, snapshot) {
+                            if (snapshot.data[0] == 'Dohr' &&
+                                snapshot.data[1] == true) {
+                              state_sobh = true;
+                              return Container(
+                                width: wight * .17,
+                                height: hight * .009,
+                                color: Colors.greenAccent,
+                              );
+                            } else {
+                              return Container(
+                                width: wight * .17,
+                                height: hight * .009,
+                                color: Colors.redAccent,
+                              );
+                            }
+                          }),
+                    ],
+                  ),
+                ),
+              ),
+//              BookPrayer(
+//                wight: wight,
+//                hight: hight,
+//                prayer_title: 'Dohr',
+//                imageasset: 'assets/images/dohr_icon.png',
+//              ),
+              onTap: () {
+                /// go into booking screen
+                print('booking for Dohr');
+                if (state_dohr == false) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AppBarSearchExample(
+                        // prayer title and Image should pass it here
+                        image_url: 'assets/images/dohr_icon.png',
+                        prayer_name: 'Dohr',
+                        tranch: 'tranche_dohr',
+                      ),
+                    ),
+                  );
+                } else if (state_dohr == true) {
+                  _showMyDialog(rm: 'Dohr');
+                  setState(() {
+                    state_dohr = false;
+                  });
                 }
               },
             ),
@@ -528,71 +640,8 @@ class _AccueilPageState extends State<AccueilPage> {
                         height: hight * .07,
                         width: wight * .18,
                         child: Image.asset(
-                            'assets/images/dohr_icon.png'), //Image.asset('assets/images/fajr_icon.png'),
-                        ///  variable
-                      ),
-                      SizedBox(
-                        height: 16,
-                      ),
-                      Text('Dohr'),
-                      SizedBox(
-                        height: 15,
-                      ),
-                      FutureBuilder(
-                          future: RepositeryShared().getBookingPrayer(),
-                          builder: (context, snapshot) {
-                            return FutureBuilder(
-                                future: RepositeryShared().getBookingStatus(),
-                                builder: (context, snapshot1) {
-                                  return Container(
-                                    width: wight * .17,
-                                    height: hight * .009,
-                                    color: (snapshot.data == 'Dohr' &&
-                                            snapshot1.data == true)
-                                        ? Colors.greenAccent
-                                        : Colors.redAccent,
-                                  );
-                                });
-                          }),
-                    ],
-                  ),
-                ),
-              ),
-//              BookPrayer(
-//                wight: wight,
-//                hight: hight,
-//                prayer_title: 'Dohr',
-//                imageasset: 'assets/images/dohr_icon.png',
-//              ),
-              onTap: () {
-                /// go into booking screen
-                print('booking for Dohr');
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AppBarSearchExample(
-                      // prayer title and Image should pass it here
-                      image_url: 'assets/images/dohr_icon.png',
-                      prayer_name: 'Dohr',
-                      tranch: 'tranche_dohr',
-                    ),
-                  ),
-                );
-              },
-            ),
-            InkWell(
-              child: Container(
-                width: wight * .19,
-                height: hight * .18,
-                child: Card(
-                  //color: Colors.white,
-                  child: Column(
-                    children: [
-                      Container(
-                        height: hight * .07,
-                        width: wight * .18,
-                        child: Image.asset(
-                            'assets/images/asr_icon.png'), //Image.asset('assets/images/fajr_icon.png'),
+                          'assets/images/asr_icon.png',
+                        ), //Image.asset('assets/images/fajr_icon.png'),
                         ///  variable
                       ),
                       SizedBox(
@@ -603,20 +652,23 @@ class _AccueilPageState extends State<AccueilPage> {
                         height: 15,
                       ),
                       FutureBuilder(
-                          future: RepositeryShared().getBookingPrayer(),
+                          future: BookingShared().getBookingAsr(),
                           builder: (context, snapshot) {
-                            return FutureBuilder(
-                                future: RepositeryShared().getBookingStatus(),
-                                builder: (context, snapshot1) {
-                                  return Container(
-                                    width: wight * .17,
-                                    height: hight * .009,
-                                    color: (snapshot.data == 'Asr' &&
-                                            snapshot1.data == true)
-                                        ? Colors.greenAccent
-                                        : Colors.redAccent,
-                                  );
-                                });
+                            if (snapshot.data[0] == 'Asr' &&
+                                snapshot.data[1] == true) {
+                              state_sobh = true;
+                              return Container(
+                                width: wight * .17,
+                                height: hight * .009,
+                                color: Colors.greenAccent,
+                              );
+                            } else {
+                              return Container(
+                                width: wight * .17,
+                                height: hight * .009,
+                                color: Colors.redAccent,
+                              );
+                            }
                           }),
                     ],
                   ),
@@ -631,17 +683,25 @@ class _AccueilPageState extends State<AccueilPage> {
               onTap: () {
                 /// go into booking screen
                 print('booking for Asr');
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AppBarSearchExample(
-                      // prayer title and Image should pass it here
-                      image_url: 'assets/images/asr_icon.png',
-                      prayer_name: 'Asr',
-                      tranch: "tranche_asr",
+
+                if (state_asr == false) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AppBarSearchExample(
+                        // prayer title and Image should pass it here
+                        image_url: 'assets/images/asr_icon.png',
+                        prayer_name: 'Asr',
+                        tranch: "tranche_asr",
+                      ),
                     ),
-                  ),
-                );
+                  );
+                } else if (state_asr == true) {
+                  _showMyDialog(rm: 'Asr');
+                  setState(() {
+                    state_asr = false;
+                  });
+                }
               },
             ),
             InkWell(
@@ -667,20 +727,23 @@ class _AccueilPageState extends State<AccueilPage> {
                         height: 15,
                       ),
                       FutureBuilder(
-                          future: RepositeryShared().getBookingPrayer(),
+                          future: BookingShared().getBookingMaghrib(),
                           builder: (context, snapshot) {
-                            return FutureBuilder(
-                                future: RepositeryShared().getBookingStatus(),
-                                builder: (context, snapshot1) {
-                                  return Container(
-                                    width: wight * .17,
-                                    height: hight * .009,
-                                    color: (snapshot.data == 'Maghrib' &&
-                                            snapshot1.data == true)
-                                        ? Colors.greenAccent
-                                        : Colors.redAccent,
-                                  );
-                                });
+                            if (snapshot.data[0] == 'Maghrib' &&
+                                snapshot.data[1] == true) {
+                              state_sobh = true;
+                              return Container(
+                                width: wight * .17,
+                                height: hight * .009,
+                                color: Colors.greenAccent,
+                              );
+                            } else {
+                              return Container(
+                                width: wight * .17,
+                                height: hight * .009,
+                                color: Colors.redAccent,
+                              );
+                            }
                           }),
                     ],
                   ),
@@ -696,17 +759,25 @@ class _AccueilPageState extends State<AccueilPage> {
               onTap: () {
                 /// go into booking screen
                 print('booking for Maghrib');
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AppBarSearchExample(
-                      // prayer title and Image should pass it here
-                      image_url: 'assets/images/maghrib_icon.png',
-                      prayer_name: 'Maghrib',
-                      tranch: "tranche_maghrib",
+
+                if (state_maghrib == false) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AppBarSearchExample(
+                        // prayer title and Image should pass it here
+                        image_url: 'assets/images/maghrib_icon.png',
+                        prayer_name: 'Maghrib',
+                        tranch: "tranche_maghrib",
+                      ),
                     ),
-                  ),
-                );
+                  );
+                } else if (state_maghrib == true) {
+                  _showMyDialog(rm: 'Maghrib');
+                  setState(() {
+                    state_maghrib = false;
+                  });
+                }
               },
             ),
             InkWell(
@@ -732,20 +803,23 @@ class _AccueilPageState extends State<AccueilPage> {
                         height: 15,
                       ),
                       FutureBuilder(
-                          future: RepositeryShared().getBookingPrayer(),
+                          future: BookingShared().getBookingIshaa(),
                           builder: (context, snapshot) {
-                            return FutureBuilder(
-                                future: RepositeryShared().getBookingStatus(),
-                                builder: (context, snapshot1) {
-                                  return Container(
-                                    width: wight * .17,
-                                    height: hight * .009,
-                                    color: (snapshot.data == 'Ishaa' &&
-                                            snapshot1.data == true)
-                                        ? Colors.greenAccent
-                                        : Colors.redAccent,
-                                  );
-                                });
+                            if (snapshot.data[0] == 'Ishaa' &&
+                                snapshot.data[1] == true) {
+                              state_sobh = true;
+                              return Container(
+                                width: wight * .17,
+                                height: hight * .009,
+                                color: Colors.greenAccent,
+                              );
+                            } else {
+                              return Container(
+                                width: wight * .17,
+                                height: hight * .009,
+                                color: Colors.redAccent,
+                              );
+                            }
                           }),
                     ],
                   ),
@@ -761,17 +835,25 @@ class _AccueilPageState extends State<AccueilPage> {
               onTap: () {
                 /// go into booking screen
                 print('booking for Isha');
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => AppBarSearchExample(
-                      // prayer title and Image should pass it here
-                      image_url: 'assets/images/ichaa_icon.png',
-                      prayer_name: 'Isha',
-                      tranch: "tranche_ichaa",
+
+                if (state_isha == false) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AppBarSearchExample(
+                        // prayer title and Image should pass it here
+                        image_url: 'assets/images/ichaa_icon.png',
+                        prayer_name: 'Isha',
+                        tranch: "tranche_ichaa",
+                      ),
                     ),
-                  ),
-                );
+                  );
+                } else if (state_isha == true) {
+                  _showMyDialog(rm: 'Ishaa');
+                  setState(() {
+                    state_isha = false;
+                  });
+                }
               },
             ),
           ],

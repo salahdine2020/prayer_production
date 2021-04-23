@@ -54,16 +54,19 @@ class _BookingPrayerState extends State<BookingPrayer> {
       id_person: int.parse(id_person),
       id_prayer: idPrayer(),
       id_tranche: id_tranch, // probleme mybe is eqaul to i
-      date: DateFormat('yyyy-MM-dd').format(DateTime.now()), //'2021-02-26',
+      date: DateFormat('yyyy-MM-dd')
+          .format(DateTime.now()), //'2021-02-26',
       date_heure: DateFormat('yyyy-MM-dd hh:mm:ss')
-          .format(DateTime.now()), //'2021-02-26 08:23:10', // date heure
+          .format(DateTime.now()),
       code: gen_codebar, //'RQ#ADCfgC0CHyG8Q#eW0',
     );
     setState(() {
       booking = true;
     });
-    await RepositeryShared().saveRelaionID(id_relation: data['id']);
-    await RepositeryShared().saveBarCode(barcode: gen_codebar); /// probleme here in map
+    //await RepositeryShared().saveRelaionID(id_relation: data['id']);
+    await saveRelation(id: data['id']);
+    await saveQrCode(id: gen_codebar);
+    //await RepositeryShared().saveBarCode(barcode: gen_codebar); /// probleme here in map
     return data;
   }
 
@@ -96,6 +99,55 @@ class _BookingPrayerState extends State<BookingPrayer> {
     }
   }
 
+  Future saveBooking({bool book}) async {
+    switch (widget.prayer) {
+      /// prayer name in constructor
+      case 'Sobh':
+        return await BookingShared().saveBookingSobh(book: book);
+      case 'Dohr':
+        return await BookingShared().saveBookingDohr(book: book);
+      case "Asr":
+        return await BookingShared().saveBookingAsr(book: book);
+      case "Maghrib":
+        return await BookingShared().saveBookingMaghrib(book: book);
+      case "Ishaa":
+        return await BookingShared().saveBookingIshaa(book: book);
+    }
+  }
+
+  Future saveRelation({id}) async {
+    switch (widget.prayer) {
+    /// prayer name in constructor
+      case 'Sobh':
+        return await RelationShared().saveRelaionIdSobh(id_r: id);
+      case 'Dohr':
+        return await RelationShared().saveRelaionIdDohr(id_r: id);
+      case "Asr":
+        return await RelationShared().saveRelaionIdAsr(id_r: id);
+      case "Maghrib":
+        return await RelationShared().saveRelaionIdMaghrib(id_r: id);
+      case "Ishaa":
+        return await RelationShared().saveRelaionIdIshaa(id_r: id);
+    }
+  }
+
+  Future saveQrCode({id}) async {
+    switch (widget.prayer) {
+    /// prayer name in constructor
+      case 'Sobh':
+        return await QrCodeShared().saveqrSobh(id_r: id);
+      case 'Dohr':
+        return await QrCodeShared().saveqrDohr(id_r: id);
+      case "Asr":
+        return await QrCodeShared().saveqrAsr(id_r: id);
+      case "Maghrib":
+        return await QrCodeShared().saveqrMaghrib(id_r: id);
+      case "Ishaa":
+        return await QrCodeShared().saveqrIshaa(id_r: id);
+    }
+  }
+
+
   Future getFieldInformation({id_mosque, id_prayer}) async {
     await PrayerProvider().PostToGetPrayerItemInformation(
       id_mosque: id_mosque,
@@ -114,10 +166,11 @@ class _BookingPrayerState extends State<BookingPrayer> {
           IconButton(
               icon: Icon(Icons.get_app),
               onPressed: () async {
+                var result = await BookingShared().getBookingSobh();
 //                var prayer = await RepositeryShared().getBookingPrayer();
 //                var status = await RepositeryShared().getBookingStatus();
-                await getFieldInformation(id_prayer: 1, id_mosque: 10);
-                //print('******* result of fidel prayer $result ****');
+                //await getFieldInformation(id_prayer: 1, id_mosque: 10);
+                print('******* List : ${result[1]} ****');
               }),
         ],
       ),
@@ -138,8 +191,7 @@ class _BookingPrayerState extends State<BookingPrayer> {
               ),
               Expanded(
                 child: FutureBuilder<List<Data>>(
-                  future:
-                      PrayerProvider().PostToGetServices(id_mosque: widget.id),
+                  future: PrayerProvider().PostToGetServices(id_mosque: widget.id),
                   builder: (context, snapshot) {
                     if (snapshot.hasError) {
                       return Text('Something went wrong');
@@ -198,16 +250,19 @@ class _BookingPrayerState extends State<BookingPrayer> {
                             trailing: FutureBuilder(
                                 future: PrayerProvider().PostToGetPrayerItemInformation( id_mosque: 10, id_prayer: 1 ),
                                 builder: (context, snapshot) {
-                                  int count = int.parse(snapshot.data['count'].toString());
-                                  int place_libre = 15 - int.parse(snapshot.data['data'][count - 1 ]['nombre'].toString());
+                                 // int count = int.parse(snapshot.data['count'].toString());
+                                 // int place_libre = 15 - int.parse(snapshot.data['data'][0]['nombre'].toString());
                                  // String tranche = snapshot.data['data'][i]['tranche'].toString();
+                                  if(!snapshot.hasData) return Text('');
                                   return Text(
-                                    place_libre.toString(),
+                                    //place_libre.toString(),
+                                    snapshot.data['data'].toString() ?? '',
                                   );
                                 }),
                             leading: FutureBuilder(
                               future: getIdGroupe(),
                               builder: (context, snapshot1) {
+                                if(!snapshot1.hasData) return Text('');
                                 return IconButton(
                                   icon: snapshot1.data == i && booking == true
                                   /// && booking == true
@@ -230,9 +285,8 @@ class _BookingPrayerState extends State<BookingPrayer> {
                                   ? await postInscriptionPrayer(id_tranch: i)
                                   : await deletRelation();
                               print('---- pleas print booking $booking ------');
-                              await RepositeryShared().saveBooking(
+                              await saveBooking(
                                   book: booking,
-                                  prayername: widget.prayer,
                               );
                               // if true make delete
                               //print('---result when user subscribe ${res} -----');

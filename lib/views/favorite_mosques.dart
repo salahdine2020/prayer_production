@@ -17,8 +17,7 @@ class FavoriteItemPage extends StatelessWidget {
               /// get shared preferenc val :
               var res_id = await RepositeryShared().getMosqueID();
               print('******** ID from shared $res_id *********');
-              var list_prayer =
-                  await PrayerProvider().PostToGetTimePrayer(id_mosque: res_id);
+              var list_prayer = await PrayerProvider().PostToGetTimePrayer(id_mosque: res_id);
               print(
                   '******** print the resut of data list :  $list_prayer *********');
             },
